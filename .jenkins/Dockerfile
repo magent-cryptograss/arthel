@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y \
     rsync \
     sudo \
     curl \
+    jq \
     && rm -rf /var/lib/apt/lists/*
 
 # Add jenkins user to sudoers
