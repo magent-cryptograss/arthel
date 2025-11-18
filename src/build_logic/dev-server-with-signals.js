@@ -1,116 +1,53 @@
 #!/usr/bin/env node
 
 /**
- * Signal-controlled development server
- * Allows external processes to restart the dev server by touching signal files
+ * Launch dev server in tmux session
+ * Runs on port 4000 (shared space) for collaborative development
  */
 
-import { spawn } from 'child_process';
-import { watchFile, existsSync, writeFileSync } from 'fs';
+import { execSync } from 'child_process';
 import { resolve } from 'path';
-import { runPrimaryBuild } from './primary_builder.js';
-import { initProjectDirs } from './locations.js';
 
 // Configuration
-const RESTART_SIGNAL = '.restart-server';
 const SITE_ARG = process.argv[2]; // 'jh' or 'cg'
-
-// Map site arg to full site name
-const SITE_NAME = SITE_ARG === 'jh' ? 'justinholmes.com' : 'cryptograss.live';
-
-// Initialize project directories for the site
-initProjectDirs(SITE_NAME);
+const SESSION_NAME = 'dev-server';
+const WORKSPACE_DIR = '/home/magent/workspace/arthel';
+const LOG_FILE = resolve('dev-server.log');
 
 if (!SITE_ARG || !['jh', 'cg'].includes(SITE_ARG)) {
     console.error('Usage: node dev-server-with-signals.js [jh|cg]');
     process.exit(1);
 }
 
-const DEV_COMMAND = SITE_ARG === 'jh' ? 'dev:jh' : 'dev:cg';
-const SIGNAL_FILE = resolve(RESTART_SIGNAL);
+const DEV_COMMAND = `SKIP_CHAIN_DATA=true NODE_ENV=development PORT=4000 webpack serve --config src/build_logic/webpack.${SITE_ARG === 'jh' ? 'justinholmes' : 'cryptograss'}.dev.js`;
 
-let serverProcess = null;
-let isRestarting = false;
+function startServer() {
+    console.log(`🚀 Starting ${SITE_ARG.toUpperCase()} dev server in tmux...`);
 
-async function startServer() {
-    if (isRestarting) return;
-
-    if (serverProcess) {
-        console.log('🛑 Stopping existing server...');
-        serverProcess.kill('SIGTERM');
-        // Wait a moment for clean shutdown
-        setTimeout(() => {
-            if (serverProcess && !serverProcess.killed) {
-                serverProcess.kill('SIGKILL');
-            }
-        }, 2000);
+    // Check if session already exists
+    try {
+        execSync(`tmux has-session -t ${SESSION_NAME} 2>/dev/null`);
+        console.log(`✓ Dev server session '${SESSION_NAME}' already running`);
+        console.log(`  Attach with: tmux attach -t ${SESSION_NAME}`);
+        return;
+    } catch (e) {
+        // Session doesn't exist, create it
     }
 
-    isRestarting = true;
+    // Create new detached tmux session and start dev server with logging
+    const tmuxCommand = `tmux new-session -d -s ${SESSION_NAME} -c ${WORKSPACE_DIR} "${DEV_COMMAND} 2>&1 | tee ${LOG_FILE}"`;
 
-    // Small delay to ensure port is released, then run async operations
-    setTimeout(() => {
-        (async () => {
-            // Run primary build before starting webpack
-            console.log('🔨 Running primary build...');
-            await runPrimaryBuild();
-
-            console.log(`🎵 Starting ${SITE_ARG.toUpperCase()} dev server...`);
-
-            serverProcess = spawn('npm', ['run', DEV_COMMAND], {
-                stdio: 'inherit',
-                env: { ...process.env, FORCE_COLOR: '1' },
-                detached: false
-            });
-
-            serverProcess.on('error', (error) => {
-                console.error('❌ Server error:', error);
-                isRestarting = false;
-            });
-
-            serverProcess.on('exit', (code, signal) => {
-                if (!isRestarting) {
-                    console.log(`🔄 Server exited (code: ${code}, signal: ${signal})`);
-                }
-                isRestarting = false;
-            });
-
-            isRestarting = false;
-            console.log('🎯 Server started! Touch .restart-server to restart');
-        })();
-    }, 500);
+    try {
+        execSync(tmuxCommand);
+        console.log('✓ Dev server started in background on port 4000');
+        console.log(`  Attach with: tmux attach -t ${SESSION_NAME}`);
+        console.log(`  View logs: tail -f ${LOG_FILE}`);
+        console.log(`  Restart with: npm run restart-server`);
+    } catch (error) {
+        console.error('❌ Failed to start tmux session:', error.message);
+        process.exit(1);
+    }
 }
 
-// Create signal file if it doesn't exist
-if (!existsSync(SIGNAL_FILE)) {
-    writeFileSync(SIGNAL_FILE, new Date().toISOString());
-}
-
-// Watch for signal file changes
-console.log(`👀 Watching ${SIGNAL_FILE} for restart signals...`);
-watchFile(SIGNAL_FILE, (curr, prev) => {
-    if (curr.mtime > prev.mtime) {
-        console.log('🔄 Restart signal received!');
-        startServer();
-    }
-});
-
-// Handle cleanup on exit
-process.on('SIGINT', () => {
-    console.log('\n👋 Shutting down...');
-    if (serverProcess) {
-        serverProcess.kill('SIGTERM');
-    }
-    process.exit(0);
-});
-
-process.on('SIGTERM', () => {
-    if (serverProcess) {
-        serverProcess.kill('SIGTERM');
-    }
-    process.exit(0);
-});
-
-// Start initially
-console.log(`🚀 Signal-controlled dev server for ${SITE_ARG.toUpperCase()}`);
+// Start the server
 startServer();
