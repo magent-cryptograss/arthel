@@ -15,11 +15,11 @@ const WORKSPACE_DIR = '/home/magent/workspace/arthel';
 const LOG_FILE = resolve('dev-server.log');
 
 if (!SITE_ARG || !['jh', 'cg'].includes(SITE_ARG)) {
-    console.error('Usage: node dev-server-with-signals.js [jh|cg]');
+    console.error('Usage: node dev-server-tmux.js [jh|cg]');
     process.exit(1);
 }
 
-const DEV_COMMAND = `SKIP_CHAIN_DATA=true NODE_ENV=development PORT=4000 webpack serve --config src/build_logic/webpack.${SITE_ARG === 'jh' ? 'justinholmes' : 'cryptograss'}.dev.js`;
+const DEV_COMMAND = `SKIP_CHAIN_DATA=true NODE_ENV=development webpack serve --port 4000 --config src/build_logic/webpack.${SITE_ARG === 'jh' ? 'justinholmes' : 'cryptograss'}.dev.js`;
 
 function startServer() {
     console.log(`🚀 Starting ${SITE_ARG.toUpperCase()} dev server in tmux...`);
@@ -34,11 +34,17 @@ function startServer() {
         // Session doesn't exist, create it
     }
 
-    // Create new detached tmux session and start dev server with logging
-    const tmuxCommand = `tmux new-session -d -s ${SESSION_NAME} -c ${WORKSPACE_DIR} "${DEV_COMMAND} 2>&1 | tee ${LOG_FILE}"`;
+    // Create new detached tmux session with a shell, then run the command
+    // This keeps the session alive after the server stops
+    const tmuxCommand = `tmux new-session -d -s ${SESSION_NAME} -c ${WORKSPACE_DIR}`;
+
+    execSync(tmuxCommand);
+
+    // Send the dev server command to the session
+    const startCommand = `tmux send-keys -t ${SESSION_NAME}:0.0 "${DEV_COMMAND} 2>&1 | tee ${LOG_FILE}" Enter`;
 
     try {
-        execSync(tmuxCommand);
+        execSync(startCommand);
         console.log('✓ Dev server started in background on port 4000');
         console.log(`  Attach with: tmux attach -t ${SESSION_NAME}`);
         console.log(`  View logs: tail -f ${LOG_FILE}`);

@@ -16,16 +16,16 @@ try {
     // Check if session exists
     execSync(`tmux has-session -t ${SESSION_NAME} 2>/dev/null`);
 
-    // Send Ctrl-C to stop the server
+    // Send Ctrl-C to stop the server (using session:window.pane format)
     console.log('🛑 Stopping current server...');
-    execSync(`tmux send-keys -t ${SESSION_NAME} C-c`);
+    execSync(`tmux send-keys -t ${SESSION_NAME}:0.0 C-c`);
 
     // Wait a moment for cleanup
-    execSync('sleep 1');
+    execSync('sleep 2');
 
     // Send command to restart (up arrow to get last command, then enter)
     console.log('🚀 Starting server...');
-    execSync(`tmux send-keys -t ${SESSION_NAME} Up Enter`);
+    execSync(`tmux send-keys -t ${SESSION_NAME}:0.0 Up Enter`);
 
     console.log('✅ Server restarted');
     console.log(`  Attach with: tmux attach -t ${SESSION_NAME}`);
@@ -33,6 +33,6 @@ try {
 
 } catch (error) {
     console.error('❌ No dev server session found');
-    console.error('   Start one with: npm run dev:jh:signals');
+    console.error('   Start one with: npm run dev:jh:tmux');
     process.exit(1);
 }
