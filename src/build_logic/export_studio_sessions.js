@@ -24,11 +24,25 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SONGS = path.resolve(HERE, '../data/songs_and_tunes');
 
 /**
+ * Words a title leaves lowercase unless they start it.
+ *
+ * Not an attempt at a style guide — just enough that a filename does not come
+ * out as "Swords To Ploughshares", which is nobody's song.
+ */
+const MINOR_WORDS = new Set([
+    'a', 'an', 'and', 'as', 'at', 'but', 'by', 'for', 'from', 'in', 'nor',
+    'of', 'on', 'or', 'the', 'to', 'with',
+]);
+
+/**
  * A track's display title.
  *
- * Songs carry a primary_display_name when the filename is not what people call
- * it; otherwise the filename slug is title-cased. "silver-44" is Silver 44,
- * and words that are already capitalised in the slug stay as they are.
+ * A song carries primary_display_name when the filename is not what people
+ * call it. Failing that the slug is title-cased, which is a guess and looks
+ * like one: "gm" becomes "Gm", and "victory-ff7" keeps a suffix that is
+ * metadata rather than part of the name. Where the guess is wrong, the fix is
+ * primary_display_name in the song's own file, so that the site, the player
+ * and the wiki all say the same thing.
  */
 function trackTitle(song, slug) {
     if (song.primary_display_name) {
@@ -36,7 +50,11 @@ function trackTitle(song, slug) {
     }
     return slug
         .split('-')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .map((word, index) => (
+            index > 0 && MINOR_WORDS.has(word)
+                ? word
+                : word.charAt(0).toUpperCase() + word.slice(1)
+        ))
         .join(' ');
 }
 
