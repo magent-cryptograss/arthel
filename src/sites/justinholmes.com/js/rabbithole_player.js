@@ -1,3 +1,16 @@
+// STALE COPY -- do not develop this file.
+//
+// The player this was copied from lives in https://github.com/cryptograss/rabbithole
+// at src/player/webamp-chartifacts.js (being renamed to rabbithole-player.js).
+// That repo was seeded from THIS file on 26 December 2025, byte for byte, and
+// only that copy has moved since: it has the timeline editor, a module export,
+// and eleven months of fixes. This one was last touched on 24 November 2025.
+//
+// Kept for now only because justinholmes.com still builds against it. It goes
+// when this site takes @cryptograss/rabbithole as a dependency.
+//
+// If you found a bug here, fix it there.
+
 // /**
 //  * Webamp Chartifacts Integration - Prototype
 //  * Combines Webamp player with chartifacts solo highlighting and NFT display
